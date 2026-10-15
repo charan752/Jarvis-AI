@@ -21,32 +21,50 @@ steps:
       distribution: temurin
       java-version: '17'
 
-  - name: Verify Gradle wrapper
+  - name: Verify project files
     run: |
-      test -f gradle/wrapper/gradle-wrapper.properties
-      test -f gradle/wrapper/gradle-wrapper.jar
-      echo "Gradle wrapper files found"
+      echo "Checking project structure..."
+      test -f gradle/wrapper/gradle-wrapper.properties || {
+        echo "ERROR: gradle-wrapper.properties is missing"
+        exit 1
+      }
+      test -f gradle/wrapper/gradle-wrapper.jar || {
+        echo "ERROR: gradle-wrapper.jar is missing"
+        exit 1
+      }
+      test -f gradlew || {
+        echo "ERROR: gradlew is missing"
+        exit 1
+      }
       cat gradle/wrapper/gradle-wrapper.properties
 
   - name: Accept Android SDK licenses
+    shell: bash
     run: |
-      SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+      set -e
+      SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+      SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
       if [ ! -x "$SDKMANAGER" ]; then
-        SDKMANAGER="$(find "$ANDROID_HOME" -type f -name sdkmanager | head -n 1)"
-      fi
-      if [ ! -x "$SDKMANAGER" ]; then
-        echo "ERROR: sdkmanager not found"
-        exit 1
-      fi
-      set +o pipefail
-      yes | "$SDKMANAGER" --licenses
-      result=${PIPESTATUS[1]}
-      set -o pipefail
-      if [ "$result" -ne 0 ]; then
-        exit "$result"
+        SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
       fi
 
-  - name: Ensure Secrets plugin files exist
+      if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+        echo "ERROR: Android SDK sdkmanager not found"
+        exit 1
+      fi
+
+      set +e
+      yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses
+      sdk_status=${PIPESTATUS[1]}
+      set -e
+
+      if [ "$sdk_status" -ne 0 ]; then
+        echo "ERROR: Android SDK license acceptance failed"
+        exit "$sdk_status"
+      fi
+
+  - name: Prepare Secrets plugin files
     run: |
       if [ ! -f .env.example ]; then
         touch .env.example
@@ -58,6 +76,7 @@ steps:
   - name: Create debug keystore
     run: |
       keytool -genkeypair \
+        -v \
         -keystore debug.keystore \
         -storepass android \
         -alias androiddebugkey \
@@ -70,12 +89,12 @@ steps:
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
 
-  - name: Build Debug APK
+  - name: Build JARVIS Debug APK
     run: |
       chmod +x ./gradlew
       ./gradlew :app:assembleDebug --stacktrace
 
-  - name: Upload APK
+  - name: Upload APK artifact
     if: success()
     uses: actions/upload-artifact@v4
     with:
