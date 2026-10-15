@@ -33,8 +33,26 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null
           set -o pipefail
 
-      - name: Prepare Secrets plugin files
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Prepare files and Build JARVIS Debug APK
         run: |
+          echo "=== Locating Android project root ==="
+          SETTINGS_FILE=$(find . -maxdepth 3 \( -name "settings.gradle.kts" -o -name "settings.gradle" \) | head -n 1)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Could not find settings.gradle.kts or settings.gradle in the repository!"
+            ls -la
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "Found Android project in: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+
+          # 1. Ensure .env.example and .env exist for Secrets plugin
           if [ ! -f .env.example ]; then
             touch .env.example
           fi
@@ -42,8 +60,7 @@ jobs:
             cp .env.example .env
           fi
 
-      - name: Create debug keystore if missing
-        run: |
+          # 2. Ensure debug.keystore exists in the project root
           if [ ! -f debug.keystore ]; then
             keytool -genkeypair \
               -v \
@@ -57,19 +74,20 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US"
           fi
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Build JARVIS Debug APK
-        run: |
-          chmod +x ./gradlew
-          ./gradlew :app:assembleDebug --stacktrace
+          # 3. Build using ./gradlew if present, otherwise use installed Gradle
+          if [ -f "./gradlew" ] && [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            chmod +x ./gradlew
+            ./gradlew :app:assembleDebug --stacktrace
+          else
+            echo "gradlew not found — building directly with Gradle..."
+            gradle :app:assembleDebug --stacktrace
+          fi
 
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: JARVIS-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/app/build/outputs/apk/debug/*.apk"
           if-no-files-found: error
           retention-days: 7
