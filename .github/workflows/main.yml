@@ -1,92 +1,87 @@
-name: Build JARVIS APK
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-on:
-  workflow_dispatch:
+    <!-- Internet and Network -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-permissions:
-  contents: read
+    <!-- Voice Assistant -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-jobs:
-  build:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
+    <!-- Background Voice Service -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
+    <!-- Contacts -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+    <!-- Notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-      - name: Accept Android SDK licenses
-        run: |
-          export ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER=$(find "$ANDROID_HOME" -name sdkmanager -type f | head -n 1)
-          fi
-          set +o pipefail
-          yes | "$SDKMANAGER" --licenses > /dev/null
-          set -o pipefail
+    <!-- Alarms -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
-      - name: Set up Gradle 9.3.1
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.3.1'
+    <!-- Vibration -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 
-      - name: Prepare files and Build JARVIS Debug APK
-        run: |
-          echo "=== 1. Checking Project Structure & Versions ==="
-          SETTINGS_FILE=$(find . -maxdepth 3 \( -name "settings.gradle.kts" -o -name "settings.gradle" \) | head -n 1)
-          if [ -z "$SETTINGS_FILE" ]; then
-            echo "ERROR: Could not find settings.gradle.kts or settings.gradle!"
-            ls -la
-            exit 1
-          fi
+    <!-- App Visibility -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
 
-          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
-          echo "Project directory: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
 
-          if [ -f "gradle/libs.versions.toml" ]; then
-            echo "=== Version Catalog (libs.versions.toml) ==="
-            head -n 25 gradle/libs.versions.toml
-          fi
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
 
-          # 2. Ensure .env.example and .env exist for Secrets plugin
-          if [ ! -f .env.example ]; then
-            touch .env.example
-          fi
-          if [ ! -f .env ]; then
-            cp .env.example .env
-          fi
+        <intent>
+            <action android:name="android.intent.action.WEB_SEARCH" />
+        </intent>
 
-          # 3. Ensure debug.keystore exists in project root
-          if [ ! -f debug.keystore ]; then
-            keytool -genkeypair \
-              -v \
-              -keystore debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-          fi
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
 
-          # 4. Run Gradle build (without --stacktrace so errors stay readable at bottom)
-          gradle :app:assembleDebug --console=plain
+    <application
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication">
 
-      - name: Upload APK artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: JARVIS-APK
-          path: "**/app/build/outputs/apk/debug/*.apk"
-          if-no-files-found: error
-          retention-days: 7
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.MyApplication">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- Existing JARVIS Voice Service -->
+        <service
+            android:name=".voice.JarvisLiveService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+    </application>
+
+</manifest>
