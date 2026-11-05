@@ -438,6 +438,108 @@ class GeminiClient(
             })
         })
 
+        // 11. openChrome
+        declarations.put(JSONObject().apply {
+            put("name", "openChrome")
+            put("description", "Opens Google Chrome when the user explicitly asks to open Chrome.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject())
+            })
+        })
+
+        // 12. searchGoogle
+        declarations.put(JSONObject().apply {
+            put("name", "searchGoogle")
+            put("description", "Opens a Google search for the user's explicitly requested query.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject().apply {
+                    put("query", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "The words or question to search for")
+                    })
+                })
+                put("required", JSONArray().apply { put("query") })
+            })
+        })
+
+        // 13. setAlarm
+        declarations.put(JSONObject().apply {
+            put("name", "setAlarm")
+            put("description", "Opens the device clock app to prepare an alarm requested by the user.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject().apply {
+                    put("hour", JSONObject().apply {
+                        put("type", "INTEGER")
+                        put("description", "Hour in 24-hour format, from 0 to 23")
+                    })
+                    put("minute", JSONObject().apply {
+                        put("type", "INTEGER")
+                        put("description", "Minute, from 0 to 59")
+                    })
+                    put("message", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Optional alarm label")
+                    })
+                })
+                put("required", JSONArray().apply {
+                    put("hour")
+                    put("minute")
+                })
+            })
+        })
+
+        // 14. openDialer
+        declarations.put(JSONObject().apply {
+            put("name", "openDialer")
+            put("description", "Opens the phone dialer with a number. Does not place a call.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject().apply {
+                    put("number", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Phone number to display in the dialer")
+                    })
+                })
+                put("required", JSONArray().apply { put("number") })
+            })
+        })
+
+        // 15. prepareMessage
+        declarations.put(JSONObject().apply {
+            put("name", "prepareMessage")
+            put("description", "Opens the SMS composer with a recipient and message. Never sends the message automatically.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject().apply {
+                    put("number", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Recipient phone number")
+                    })
+                    put("message", JSONObject().apply {
+                        put("type", "STRING")
+                        put("description", "Message text to prepare")
+                    })
+                })
+                put("required", JSONArray().apply {
+                    put("number")
+                    put("message")
+                })
+            })
+        })
+
+        // 16. openSettings
+        declarations.put(JSONObject().apply {
+            put("name", "openSettings")
+            put("description", "Opens Android device settings when explicitly requested.")
+            put("parameters", JSONObject().apply {
+                put("type", "OBJECT")
+                put("properties", JSONObject())
+            })
+        })
+
         return declarations
     }
 }
